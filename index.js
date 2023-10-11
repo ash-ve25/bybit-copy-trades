@@ -1,5 +1,6 @@
 // index.js
 import main from "./liveTraders.js";
+import mainTrade from "./liveTrades.js";
 import express from "express";
 import { CronJob } from 'cron';
 
@@ -22,7 +23,7 @@ const getLiveTrades = new CronJob(
 	'* * * * * *',
 	async () => {
 		try {
-		  const tradesResponse = await main();		          
+		  const tradesResponse = await mainTrade();		          
 		} catch (error) {
 		  getLiveTrades.stop();
 		}

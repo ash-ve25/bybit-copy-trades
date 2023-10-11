@@ -50,8 +50,7 @@ const dbConfig = {
   database: 'bybit_trades',
 };
 
-// const connection = mysql.createConnection(dbConfig);
-let connection;
+const connection = mysql.createConnection(dbConfig);
 
   function base64Transform(s) {
     // Step 1: Decode the input string from Base64
@@ -118,10 +117,10 @@ const main = async () => {
       fs.writeFileSync(outputFileName, JSON.stringify(jsonDataArray, null, 2));
       console.log(`JSON data saved to ${outputFileName}`);
       // Insert data into the MySQL database
-    //   if (jsonDataArray.length > 0) {
-    //     connection.connect(); // Connect to the database
-    //     insertDataIntoDatabase(jsonDataArray);
-    //   }
+      if (jsonDataArray.length > 0) {
+        connection.connect(); // Connect to the database
+        insertDataIntoDatabase(jsonDataArray);
+      }
     } catch (error) {
       console.error('An error occurred:', error.message);
     }
