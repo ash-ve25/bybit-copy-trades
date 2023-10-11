@@ -10,9 +10,9 @@ const retryInterval = 1000; // Time in milliseconds to wait between retries
 
 // MySQL database configuration
 const dbConfig = {
-  host: 'localhost',
-  user: 'root',
-  password: 'Dragon2502#singh',
+  host: '38.242.231.146',
+  user: 'user',
+  password: 'A2Q8J7dCSNvkEM25',
   database: 'bybit_trades',
 };
 
@@ -322,6 +322,8 @@ let traders = [];
 const mainTrade = async () => {  
   try{
     traders = await fetchTradersFromDatabase();    
+    console.log('Fetched all traders from DB');
+    logger.log(`Fetched all traders from DB`);
     getLiveTrades();  
   }  catch (error) {
     console.error('An error occurred while fetching traders from the database:', error);
