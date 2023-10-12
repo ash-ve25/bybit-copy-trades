@@ -1,4 +1,3 @@
-// index.js
 import main from "./liveTraders.js";
 import mainTrade from "./liveTrades.js";
 import express from "express";
@@ -6,6 +5,7 @@ import { CronJob } from 'cron';
 
 const app = express()
 const PORT = 3000
+let isJobRunning = false; // Flag to track if the job is currently running
 
 app.listen(PORT, () => {
   console.log(`API listening on PORT ${PORT} `)
@@ -20,13 +20,24 @@ app.get('/about', (req, res) => {
 })
 
 const getLiveTrades = new CronJob(
-	'* * * * * *',
+	'*/20 * * * *',
 	async () => {
-		try {
-		  const tradesResponse = await mainTrade();		          
-		} catch (error) {
-		  getLiveTrades.stop();
-		}
+        if (!isJobRunning) {
+            isJobRunning = true;
+            console.log("running now!")
+            mainTrade()
+                .then(tradesResponse => {
+                // Process the tradesResponse if needed
+                })
+                .catch(error => {
+                console.error(error);
+                })
+                .finally(() => {
+                isJobRunning = false;
+                });
+        }else{
+            console.log("else called")
+        }		
 	  },
 	null,
 	true,

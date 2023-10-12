@@ -324,7 +324,7 @@ const mainTrade = async () => {
     traders = await fetchTradersFromDatabase();    
     console.log('Fetched all traders from DB');
     logger.info(`Fetched all traders from DB`);
-    getLiveTrades();  
+    await getLiveTrades();  
   }  catch (error) {
     console.error('An error occurred while fetching traders from the database:', error);
     logger.error(`An error occurred while fetching traders from the database: ${error}`);
