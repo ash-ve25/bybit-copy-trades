@@ -10,13 +10,17 @@ const retryInterval = 1000; // Time in milliseconds to wait between retries
 
 // MySQL database configuration
 const dbConfig = {
-  host: '38.242.231.146',
-  user: 'user',
-  password: 'A2Q8J7dCSNvkEM25',
+//   host: '38.242.231.146',
+//   user: 'user',
+//   password: 'A2Q8J7dCSNvkEM25',
+  host: 'localhost',
+  user: 'root',
+  password: 'Dragon2502#singh',
   database: 'bybit_trades',
+  connectionLimit : 10, //important
 };
 
-const connection = mysql.createConnection(dbConfig);
+const connection = mysql.createPool(dbConfig);
 // Define log format
 const logFormat = winston.format.printf(({ timestamp, level, message }) => `${timestamp} ${level}: ${message}`);
 
@@ -337,9 +341,12 @@ const getLiveTrades = async () => {
       await insertLiveTradesIntoDatabase(jsonDataArray);
       console.log(`Inserted liveTrades data into the database.`);
       logger.info(`Inserted liveTrades data into the database.`);
-      fs.writeFileSync(outputFileName, JSON.stringify(jsonDataArray, null, 2));
-      console.log(`JSON data saved to ${outputFileName}`);
-      logger.info(`JSON data saved to ${outputFileName}`);
+
+      await sleep(1000);
+      await mainTrade();
+    //   fs.writeFileSync(outputFileName, JSON.stringify(jsonDataArray, null, 2));        
+    //   console.log(`JSON data saved to ${outputFileName}`);
+    //   logger.info(`JSON data saved to ${outputFileName}`);
     } catch (error) {
       console.error('An error occurred:', error.message);
       logger.error(`An error occurred: ${error.message}`);
