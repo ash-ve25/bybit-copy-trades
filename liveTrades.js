@@ -10,12 +10,12 @@ const retryInterval = 1000; // Time in milliseconds to wait between retries
 
 // MySQL database configuration
 const dbConfig = {
-//   host: '38.242.231.146',
-//   user: 'user',
-//   password: 'A2Q8J7dCSNvkEM25',
-  host: 'localhost',
-  user: 'root',
-  password: 'Dragon2502#singh',
+  host: '38.242.231.146',
+  user: 'user',
+  password: 'A2Q8J7dCSNvkEM25',
+//   host: 'localhost',
+//   user: 'root',
+//   password: 'Dragon2502#singh',
   database: 'bybit_trades',
   connectionLimit : 10, //important
 };
@@ -348,10 +348,11 @@ const getLiveTrades = async () => {
     //   console.log(`JSON data saved to ${outputFileName}`);
     //   logger.info(`JSON data saved to ${outputFileName}`);
     } catch (error) {
-      console.error('An error occurred:', error.message);
-      logger.error(`An error occurred: ${error.message}`);
+      console.error('An error occurred closing current request pool:', error.message);
+      logger.error(`An error occurred closing current request pool: ${error.message}`);
     }finally {
-      connection.end(); // Close the database connection when done.
+        //restarting the trade request
+        await mainTrade();
     }
   };
 
