@@ -20,7 +20,7 @@ const dbConfig = {
   connectionLimit : 10, //important
 };
 
-const connection = mysql.createPool(dbConfig);
+const pool = mysql.createPool(dbConfig);
 // Define log format
 const logFormat = winston.format.printf(({ timestamp, level, message }) => `${timestamp} ${level}: ${message}`);
 
@@ -189,16 +189,19 @@ const callApiWithRetry = async (retryCount = 0, pageNo) => {
                 logger.info(`Trade objects exclusive to API: ${exclusiveToAPI.length}`);
                 
                 if(exclusiveToDB.length > 0){
+                    console.log("closing trades");
                     //update the old trades that were in DB to closed
                     const res = await updateClosedTradesIntoDatabase(exclusiveToDB);
                 }
                 // //add new trades to DB
-                // allData = allData.concat(exclusiveToAPI);   
-                // Insert liveTrades data into the MySQL database                
-                await insertLiveTradesIntoDatabase(exclusiveToAPI);
-                console.log(`Inserted liveTrades data for trader ${traders[t]['trader_id']} into the database.`);
-                logger.info(`Inserted liveTrades data for trader ${traders[t]['trader_id']} into the database.`);
-                             
+                // allData = allData.concat(exclusiveToAPI);  
+                if(exclusiveToAPI.length > 0){
+                    // Insert liveTrades data into the MySQL database          
+                    console.log("inserting live trades in DB");      
+                    await insertLiveTradesIntoDatabase(exclusiveToAPI);
+                    console.log(`Inserted liveTrades data for trader ${traders[t]['trader_id']} into the database.`);
+                    logger.info(`Inserted liveTrades data for trader ${traders[t]['trader_id']} into the database.`);
+                }                                    
             }                      
         } else {
               console.error(`Received a ${response.status} response for page ${pageNo}. Retrying...`);            
@@ -240,25 +243,41 @@ async function sleep(time = 1) {
 
 const fetchTradesFromDatabase = (traderID) => {
   return new Promise((resolve, reject) => {
-    connection.query(`SELECT  * FROM live_trades where traderID = '${traderID}'`, (err, results) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(results);
-      }
-    });
+    pool.getConnection((err, connection) => {
+        if (err) {
+            console.log('query connec error!', err);
+            reject(err);
+        } else{
+            connection.query(`SELECT  * FROM live_trades where traderID = '${traderID}'`, (err, results) => {
+                if (err) {
+                  reject(err);
+                } else {
+                  resolve(results);                  
+                }
+                connection.release();
+              });
+        }
+    });    
   });
 };
 
 
 const fetchTradersFromDatabase = () => {
   return new Promise((resolve, reject) => {
-    connection.query('SELECT  * FROM master_traders where is_trade_open=0', (err, results) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(results);
-      }
+    pool.getConnection((err, connection) => {
+        if (err) {
+            console.log('query connec error!', err);
+            reject(err);
+        } else{
+            connection.query('SELECT  * FROM master_traders where is_trade_open=0', (err, results) => {
+                if (err) {
+                  reject(err);
+                } else {
+                  resolve(results);                  
+                }
+                connection.release();
+            });
+        }
     });
   });
 };
@@ -289,14 +308,21 @@ const insertLiveTradesIntoDatabase = (liveTrades) => {
       trade.traderID,
       trade.leaderFollowerCount
     ]);  
-    connection.connect(); // Connect to the database
-    connection.query(query, [values], (err) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve();
-      }
-    });
+    pool.getConnection((err, connection) => {
+        if (err) {
+            console.log("error");
+            reject( err )            
+        }else{
+            connection.query(query, [values], (err) => {
+                if (err) {
+                  reject(err);
+                } else {
+                  resolve();
+                }
+                connection.release()
+              });
+        }
+    });    
   });
 };
 
@@ -305,14 +331,14 @@ const updateClosedTradesIntoDatabase = async (closedTrades) => {
   if(closedTrades.length > 0){
     try {
       for (const trade of closedTrades) {
-        await connection.execute(
-          `UPDATE live_trades SET isClosed = 1 WHERE traderId = '${trade.traderID}' AND crossSeq = ?`,
-          [trade.crossSeq]
-        );        
+            pool.execute(
+                `UPDATE live_trades SET isClosed = 1 WHERE traderId = '${trade.traderID}' AND crossSeq = ?`,
+                [trade.crossSeq]
+              );
+                   
       }
       console.log(`As per the API, Trade closed into the database successfully.`);
-      logger.info(`As per the API, Trade closed into the database successfully.`);
-      
+      logger.info(`As per the API, Trade closed into the database successfully.`);      
     } catch (error) {
       console.error('Error updating trade objects:', error);
     }
@@ -321,18 +347,20 @@ const updateClosedTradesIntoDatabase = async (closedTrades) => {
 
 
 // Function to insert data into the MySQL database
-function updateTrader(traderID) {
-  const query = `UPDATE master_traders set is_trade_open = 1 where trader_id = '${traderID}'`;
-
-  connection.query(query, (err) => {
-    if (err) {
-      console.error('Error inserting data into the database:', err);
-      logger.error(`Error inserting data into the database: ${err}`);
-    } else {
-      console.log(`Data updated for ${traderID} into the database successfully.`);
-      logger.info(`Data updated for ${traderID} into the database successfully.`);
-    }    
-  });
+function updateTrader(traderID) {   
+    pool.getConnection( (err, connection) => {    
+        const query = `UPDATE master_traders set is_trade_open = 1 where trader_id = '${traderID}'`;
+        connection.query(query, (err) => {
+            if (err) {
+            console.error('Error inserting data into the database:', err);
+            logger.error(`Error inserting data into the database: ${err}`);
+            } else {
+            console.log(`Data updated for ${traderID} into the database successfully.`);
+            logger.info(`Data updated for ${traderID} into the database successfully.`);            
+            }    
+            connection.release();
+        });
+    });
 }
 
 let traders = [];
