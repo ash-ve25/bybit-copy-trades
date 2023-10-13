@@ -44,9 +44,9 @@ const headers = {
 
   // MySQL database configuration
 const dbConfig = {
-    host: '38.242.231.146',
-    user: 'user',
-    password: 'A2Q8J7dCSNvkEM25',
+  host: '185.252.232.252',
+  user: 'user',
+  password: 'A2Q8J7dCSNvkEM25',
   database: 'bybit_trades',
 };
 

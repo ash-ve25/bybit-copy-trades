@@ -10,7 +10,7 @@ const retryInterval = 1000; // Time in milliseconds to wait between retries
 
 // MySQL database configuration
 const dbConfig = {
-  host: '38.242.231.146',
+  host: '185.252.232.252',
   user: 'user',
   password: 'A2Q8J7dCSNvkEM25',
 //   host: 'localhost',
@@ -102,12 +102,16 @@ const headers = {
   let pageNo = 1;
 
   
-const callApiWithRetry = async (retryCount = 0) => {
+const callApiWithRetry = async (retryCount = 0, pageNo) => {
   let allData = [];
 
   try {   
     for(let t=0;t<traders.length;t++){       
-        pageNo = 1;     
+        if(retryCount > 0){
+            pageNo = pageNo;
+        }else{
+            pageNo = 1;
+        }
         let individualTradersTradeFromAPI = [];
         let url = `${baseUrl}?page=${pageNo}&pageSize=50&timeStamp=${timeStamp}&leaderMark=${traders[t]['trader_id']}`;
         const response = await axios.get(url, axiosConfig);
@@ -122,84 +126,92 @@ const callApiWithRetry = async (retryCount = 0) => {
               logger.info("trader profile is hidden: ", response.data.result.openTradeInfoProtection);
             }
 
-            let liveTrades= liveTradesRaw.map(s=>{
-              s.traderID = traders[t]['trader_id'];
-              s.leaderFollowerCount = traders[t]['follower_count'];
-              return s;
-            });
-
-            console.log("trades length: ", liveTrades.length);
-            // Insert liveTrades data into the MySQL database
-            // if (liveTrades.length > 0) {
-            //   await insertLiveTradesIntoDatabase(liveTrades);
-            //   console.log(`Inserted liveTrades data for trader ${traders[t]['trader_id']} into the database.`);
-            //   logger.info(`Inserted liveTrades data for trader ${traders[t]['trader_id']} into the database.`);
-            // }
-
-            console.log("total trade count: ", response.data.result.totalCount);
-            logger.info(`total trade count: ${response.data.result.totalCount}`);
-            individualTradersTradeFromAPI = individualTradersTradeFromAPI.concat(liveTrades);
-            console.log(`Fetched data for trader ${traders[t]['trader_id']} from position ${t} with page ${pageNo}`);
-            logger.info(`Fetched data for trader ${traders[t]['trader_id']} from position ${t} with page ${pageNo}`);
-            if(totalCount > 50){
-              for(let i=1;i<=(totalCount/50);i++){
-                pageNo++; 
-                console.log(pageNo)
-                url = `${baseUrl}?page=${pageNo}&pageSize=50&timeStamp=${timeStamp}&leaderMark=${traders[t]['trader_id']}`;
-                const responseNext = await axios.get(url, axiosConfig);
-                if (responseNext.status === 200) {
-                  let liveTradesNextRaw = responseNext.data.result.data;
-
-                  let liveTradesNext= liveTradesNextRaw.map(s=>{
+            if(totalCount > 0){
+                let liveTrades= liveTradesRaw.map(s=>{
                     s.traderID = traders[t]['trader_id'];
                     s.leaderFollowerCount = traders[t]['follower_count'];
                     return s;
-                  });
-
-                  // // Insert liveTrades data into the MySQL database
+                });
+      
+                  console.log("trades length: ", liveTrades.length);
+                  // Insert liveTrades data into the MySQL database
                   // if (liveTrades.length > 0) {
                   //   await insertLiveTradesIntoDatabase(liveTrades);
                   //   console.log(`Inserted liveTrades data for trader ${traders[t]['trader_id']} into the database.`);
                   //   logger.info(`Inserted liveTrades data for trader ${traders[t]['trader_id']} into the database.`);
                   // }
-                  // console.log(responseNext.data.result);                  
-                  individualTradersTradeFromAPI = individualTradersTradeFromAPI.concat(liveTradesNext);                  
+      
+                  console.log("total trade count: ", response.data.result.totalCount);
+                  logger.info(`total trade count: ${response.data.result.totalCount}`);
+                  individualTradersTradeFromAPI = individualTradersTradeFromAPI.concat(liveTrades);
                   console.log(`Fetched data for trader ${traders[t]['trader_id']} from position ${t} with page ${pageNo}`);
                   logger.info(`Fetched data for trader ${traders[t]['trader_id']} from position ${t} with page ${pageNo}`);
-                }                
-              }
-            }            
+                  if(totalCount > 50){
+                    for(let i=1;i<=(totalCount/50);i++){
+                      pageNo++; 
+                      console.log(pageNo)
+                      url = `${baseUrl}?page=${pageNo}&pageSize=50&timeStamp=${timeStamp}&leaderMark=${traders[t]['trader_id']}`;
+                      const responseNext = await axios.get(url, axiosConfig);
+                      if (responseNext.status === 200) {
+                        let liveTradesNextRaw = responseNext.data.result.data;
+      
+                        let liveTradesNext= liveTradesNextRaw.map(s=>{
+                          s.traderID = traders[t]['trader_id'];
+                          s.leaderFollowerCount = traders[t]['follower_count'];
+                          return s;
+                        });
+      
+                        // // Insert liveTrades data into the MySQL database
+                        // if (liveTrades.length > 0) {
+                        //   await insertLiveTradesIntoDatabase(liveTrades);
+                        //   console.log(`Inserted liveTrades data for trader ${traders[t]['trader_id']} into the database.`);
+                        //   logger.info(`Inserted liveTrades data for trader ${traders[t]['trader_id']} into the database.`);
+                        // }
+                        // console.log(responseNext.data.result);                  
+                        individualTradersTradeFromAPI = individualTradersTradeFromAPI.concat(liveTradesNext);                  
+                        console.log(`Fetched data for trader ${traders[t]['trader_id']} from position ${t} with page ${pageNo}`);
+                        logger.info(`Fetched data for trader ${traders[t]['trader_id']} from position ${t} with page ${pageNo}`);
+                      }                
+                    }
+                }
+                //get all trades of a trader from DB
+                const individualTradersTradeFromDB = await fetchTradesFromDatabase(traders[t]['trader_id']);        
+                //compare all the DB trades with the current trades
+                // Find trade objects exclusive to the DB array
+                const exclusiveToDB = individualTradersTradeFromDB.filter((dbTrade) => !individualTradersTradeFromAPI.some((apiTrade) => apiTrade.crossSeq === dbTrade.crossSeq));
+
+                // Find trade objects exclusive to the API array
+                const exclusiveToAPI = individualTradersTradeFromAPI.filter((apiTrade) => !individualTradersTradeFromDB.some((dbTrade) => dbTrade.crossSeq === apiTrade.crossSeq));
+
+                console.log('Trade objects exclusive to DB:', exclusiveToDB.length);        
+                logger.info(`Trade objects exclusive to DB: ${exclusiveToDB.length}`);
+                console.log('Trade objects exclusive to API:', exclusiveToAPI.length);
+                logger.info(`Trade objects exclusive to API: ${exclusiveToAPI.length}`);
+                
+                if(exclusiveToDB.length > 0){
+                    //update the old trades that were in DB to closed
+                    const res = await updateClosedTradesIntoDatabase(exclusiveToDB);
+                }
+                // //add new trades to DB
+                // allData = allData.concat(exclusiveToAPI);   
+                // Insert liveTrades data into the MySQL database                
+                await insertLiveTradesIntoDatabase(exclusiveToAPI);
+                console.log(`Inserted liveTrades data for trader ${traders[t]['trader_id']} into the database.`);
+                logger.info(`Inserted liveTrades data for trader ${traders[t]['trader_id']} into the database.`);
+                             
+            }                      
         } else {
               console.error(`Received a ${response.status} response for page ${pageNo}. Retrying...`);            
               logger.error(`Received a ${response.status} response for page ${pageNo}. Retrying...`);            
               if (retryCount < maxRetries) {
                 // Wait for a while before making the next request
                 await new Promise(resolve => setTimeout(resolve, retryInterval));
-                await callApiWithRetry(retryCount + 1);
+                await callApiWithRetry(retryCount + 1, pageNo);
               } else {
                 console.log('Maximum number of retries reached. Exiting.');
                 logger.info('Maximum number of retries reached. Exiting.');
               }
-        }    
-      
-        //get all trades of a trader from DB
-        const individualTradersTradeFromDB = await fetchTradesFromDatabase(traders[t]['trader_id']);        
-        //compare all the trades with the current trades
-        // Find trade objects exclusive to the DB array
-        const exclusiveToDB = individualTradersTradeFromDB.filter((dbTrade) => !individualTradersTradeFromAPI.some((apiTrade) => apiTrade.crossSeq === dbTrade.crossSeq));
-
-        // Find trade objects exclusive to the API array
-        const exclusiveToAPI = individualTradersTradeFromAPI.filter((apiTrade) => !individualTradersTradeFromDB.some((dbTrade) => dbTrade.crossSeq === apiTrade.crossSeq));
-
-        console.log('Trade objects exclusive to DB:', exclusiveToDB.length);        
-        logger.info(`Trade objects exclusive to DB: ${exclusiveToDB.length}`);
-        console.log('Trade objects exclusive to API:', exclusiveToAPI.length);
-        logger.info(`Trade objects exclusive to API: ${exclusiveToAPI.length}`);
-        //add new trades to DB
-        //update the old trades that were in DB to closed
-        const res = await updateClosedTradesIntoDatabase(exclusiveToDB);
-        allData = allData.concat(exclusiveToAPI);
-        allData = allData.concat(exclusiveToDB);
+        }                  
     } 
     return allData;          
 } catch (error) {
@@ -296,10 +308,11 @@ const updateClosedTradesIntoDatabase = async (closedTrades) => {
         await connection.execute(
           `UPDATE live_trades SET isClosed = 1 WHERE traderId = '${trade.traderID}' AND crossSeq = ?`,
           [trade.crossSeq]
-        );
+        );        
       }
-  
-      console.log('Trade objects updated successfully.');
+      console.log(`As per the API, Trade closed into the database successfully.`);
+      logger.info(`As per the API, Trade closed into the database successfully.`);
+      
     } catch (error) {
       console.error('Error updating trade objects:', error);
     }
@@ -338,9 +351,9 @@ const mainTrade = async () => {
 const getLiveTrades = async () => {
     try {      
       const jsonDataArray = await callApiWithRetry();
-      await insertLiveTradesIntoDatabase(jsonDataArray);
-      console.log(`Inserted liveTrades data into the database.`);
-      logger.info(`Inserted liveTrades data into the database.`);
+    //   await insertLiveTradesIntoDatabase(jsonDataArray);
+    //   console.log(`Inserted liveTrades data into the database.`);
+    //   logger.info(`Inserted liveTrades data into the database.`);
 
       await sleep(1000);
       await mainTrade();
