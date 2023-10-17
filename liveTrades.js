@@ -118,15 +118,15 @@ const callApiWithRetry = async (retryCount = 0, pageNo) => {
           if (response.status === 200) {                        
             console.log(response.data.result.totalCount);
             let totalCount = response.data.result.totalCount;
-            let liveTradesRaw = response.data.result.data;
-            if(response.data.result.openTradeInfoProtection === 1){
-              //is trade open is 1 means its hidden from profile
-              updateTrader(traders[t]['trader_id']);
-              console.log("trader profile is hidden: ", response.data.result.openTradeInfoProtection);
-              logger.info("trader profile is hidden: ", response.data.result.openTradeInfoProtection);
-            }
-
             if(totalCount > 0){
+                let liveTradesRaw = response.data.result.data;
+                if(response.data.result.openTradeInfoProtection === 1){
+                    //is trade open is 1 means its hidden from profile
+                    updateTrader(traders[t]['trader_id']);
+                    console.log("trader profile is hidden: ", response.data.result.openTradeInfoProtection);
+                    logger.info("trader profile is hidden: ", response.data.result.openTradeInfoProtection);
+                }
+            
                 let liveTrades= liveTradesRaw.map(s=>{
                     s.traderID = traders[t]['trader_id'];
                     s.leaderFollowerCount = traders[t]['follower_count'];
