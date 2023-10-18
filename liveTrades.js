@@ -275,7 +275,7 @@ const fetchTradersFromDatabase = () => {
                 } else {
                   resolve(results);                  
                 }
-                connection.release();
+                
             });
         }
     });
